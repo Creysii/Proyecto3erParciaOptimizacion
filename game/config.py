@@ -64,11 +64,12 @@ DECISION_ZOOM_MARGIN = 1.4
 # Límite de seguridad de iteraciones por corrida — ajustable, igual que G.
 MAX_ITERATIONS_SAFETY = 200
 
-# Tiempo deseado (segundos) para cruzar el dominio completo de una función
-# caminando en línea recta al zoom base — usado para calibrar la velocidad
-# del jugador dentro de una corrida (que vive en unidades de dominio/seg,
-# muy distintas de PLAYER_SPEED que está en píxeles/seg para el lobby).
-EXPLORATION_CROSSING_TIME_SECONDS = 7.0
+# Velocidad del jugador dentro de una corrida, como FRACCIÓN del span
+# visible actual cruzada por segundo — así el movimiento se siente
+# uniforme sin importar el nivel de zoom (a diferencia de una velocidad
+# fija en unidades de dominio/seg, que se sentía vertiginosa con zoom
+# amplio y casi imperceptible con zoom cerrado). Ajustable.
+EXPLORATION_SPEED_SPAN_FRACTION = 0.6
 
 # Margen extra (fracción) para el modo observador global (tecla K), para
 # que el borde de bounds/trayectoria no quede pegado al borde de pantalla.
@@ -80,4 +81,5 @@ COLOR_CANDIDATE_GOOD = (150, 210, 150)
 COLOR_CANDIDATE_NEUTRAL = (140, 140, 150)
 COLOR_CANDIDATE_REJECTED = (190, 90, 90)
 COLOR_TRAJECTORY_LINE = (200, 200, 210)
-# IRONEDIT:1783483891:4d9add950223f59f201cf67728bc9256521ff19b096ccffe30c5ffb005cdf1f2
+COLOR_GLOBAL_OPTIMUM_MARKER = (255, 60, 200)
+# IRONEDIT:1783512345:08d135933b6ee73cb9da66c3dd31e6de4e491f039144198cd28001cb051a242c

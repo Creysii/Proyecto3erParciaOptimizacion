@@ -23,6 +23,14 @@ class TerrainFunction(ABC):
     bounds: tuple[tuple[float, float], tuple[float, float]]
     global_optimum_position: tuple[float, float]
     global_optimum_value: float
+    # Algunas funciones (ej. Himmelblau) tienen VARIOS óptimos globales
+    # igualmente válidos, todos con el mismo valor. global_optimum_position
+    # es uno representativo (usado para el cálculo de progreso_relativo,
+    # donde solo importa el VALOR, no cuál posición específica); esta lista
+    # opcional contiene los demás, para que el marcador visual de fin de
+    # partida pueda mostrarlos todos sin necesitar lógica especial por
+    # función en el código de renderizado.
+    additional_global_optima: tuple[tuple[float, float], ...] = ()
 
     @abstractmethod
     def evaluate(self, x: float, y: float) -> float:
@@ -45,4 +53,4 @@ class TerrainFunction(ABC):
         paro (Newton en particular, pero útil como indicador para todos)."""
         gx, gy = self.gradient(x, y)
         return (gx**2 + gy**2) ** 0.5
-# IRONEDIT:1783483892:996080c68985b6773a55a8b041c51d4201533650089d108e04d38b4fb948f39a
+# IRONEDIT:1783512345:ef801b83f8a7173c7a8de15e4549d44365371d8e7a46de8dfd934a4f4eed3c2f

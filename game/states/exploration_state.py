@@ -129,9 +129,9 @@ class ExplorationState:
         (x_min, x_max), (y_min, y_max) = self.terrain.bounds
         start_pos = ((x_min + x_max) / 2.0, (y_min + y_max) / 2.0)
         self.player = Player(start_pos=start_pos)
-
-        crossing_distance = max(x_max - x_min, y_max - y_min)
-        self.player.speed = crossing_distance / config.EXPLORATION_CROSSING_TIME_SECONDS
+        # Velocidad inicial coherente con el span de arranque; se
+        # recalcula cada frame en update() para seguir el zoom actual.
+        self.player.speed = config.EXPLORATION_SPEED_SPAN_FRACTION * self.viewport.state.span
 
         self.hud = ExplorationHUD()
         self.hud_messages = MessageQueue()
@@ -220,22 +220,26 @@ class ExplorationState:
         if self.show_global_map:
             return self._compute_overview_target()
 
-        # CENTRO: siempre la posición del jugador, directamente — el
-        # seguimiento de cámara no pasa por ningún cálculo intermedio.
-        center = (self.player.position.x, self.player.position.y)
-
-        # SPAN: exclusivamente de la distribución de los candidatos.
-        # compute_target_span() no recibe la posición del jugador — ni
-        # siquiera existe un parámetro por donde pasarla — así que el
-        # nivel de zoom es, por construcción, invariante a dónde esté
-        # parado el jugador mientras el conjunto de candidatos no cambie.
         if self.run.phase == RunPhase.CHOOSING_START:
-            candidate_positions: list[tuple[float, float]] = []
-        else:
-            candidate_positions = [c.position for c in self.run.current_candidates]
+            # Cámara FIJA en el centro del dominio completo — el jugador
+            # recorre libremente todo el "mapa" para elegir x0. Si la
+            # cámara persiguiera al jugador aquí (como en SHOWING_CANDIDATES),
+            # el seguimiento tan ceñido (center_lerp_rate alto) cancelaría
+            # casi todo el desplazamiento visible en pantalla, dando la
+            # sensación de que el jugador no se mueve — aunque su posición
+            # de dominio sí cambie. Con la cámara fija, caminar se nota de
+            # verdad contra un fondo estable, y las paredes de colisión de
+            # la sala vuelven a tener sentido real (alcanzables).
+            (x_min, x_max), (y_min, y_max) = self.terrain.bounds
+            fixed_center = ((x_min + x_max) / 2.0, (y_min + y_max) / 2.0)
+            span = self.viewport.compute_target_span([], fallback_bounds=self.terrain.bounds)
+            return ViewportState(center=fixed_center, span=span)
 
+        # SHOWING_CANDIDATES: aquí sí, la cámara sigue activamente al
+        # jugador mientras explora entre los candidatos ya generados.
+        center = (self.player.position.x, self.player.position.y)
+        candidate_positions = [c.position for c in self.run.current_candidates]
         span = self.viewport.compute_target_span(candidate_positions, fallback_bounds=self.terrain.bounds)
-
         return ViewportState(center=center, span=span)
 
     def _compute_overview_target(self) -> ViewportState:
@@ -249,6 +253,14 @@ class ExplorationState:
         for candidate in self.run.current_candidates:
             xs.append(candidate.position[0])
             ys.append(candidate.position[1])
+        # Incluir los óptimos globales garantiza que, al finalizar la
+        # partida (que reutiliza este mismo encuadre), el marcador del
+        # óptimo real quede siempre visible junto con el resultado del
+        # jugador, sin importar qué tan lejos haya quedado uno del otro.
+        all_optima = [self.terrain.global_optimum_position, *self.terrain.additional_global_optima]
+        for optimum_position in all_optima:
+            xs.append(optimum_position[0])
+            ys.append(optimum_position[1])
 
         center = ((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0)
         span = max(max(xs) - min(xs), max(ys) - min(ys)) * config.OVERVIEW_MARGIN_FACTOR
@@ -276,11 +288,22 @@ class ExplorationState:
 
         if self._finish_timer is not None:
             self._finish_timer -= dt
+            # La cámara se abre para mostrar el resultado final junto al
+            # marcador del óptimo global — sin esto, la comparación visual
+            # podría quedar fuera de pantalla si el algoritmo convergió
+            # lejos del óptimo real (ej. atrapado en un mínimo local).
+            self.camera_follow.update(dt, self._compute_overview_target())
+            self.viewport.apply_state(self.camera_follow.state)
             if self._finish_timer <= 0:
                 self.on_finish()
             return
 
         keys = pygame.key.get_pressed()
+        # Velocidad como fracción del span VISIBLE actual — no del span
+        # objetivo (que podría estar a mitad de una transición de zoom).
+        # Esto es lo que hace que el movimiento se sienta uniforme sin
+        # importar qué tan acercada o alejada esté la cámara en este momento.
+        self.player.speed = config.EXPLORATION_SPEED_SPAN_FRACTION * self.viewport.state.span
         self.player.handle_input(keys)
         self.player.try_move(dt, self.collision_rects, self.viewport)
 
@@ -306,6 +329,9 @@ class ExplorationState:
                 hovered = self._get_hovered_candidate()
 
         self.player.draw(surface, self.viewport)
+
+        if self._finish_timer is not None:
+            self._draw_global_optimum_markers(surface)
 
         self.hud.draw(surface, self.function_name, self.algorithm_name, self.algorithm_id, self.run)
         self.hud.draw_hovered_candidate_info(surface, hovered)
@@ -333,6 +359,28 @@ class ExplorationState:
             pygame.draw.circle(surface, color, screen_pos, 10)
             pygame.draw.circle(surface, (0, 0, 0), screen_pos, 10, width=2)
 
+    def _draw_global_optimum_markers(self, surface: pygame.Surface) -> None:
+        """Marca la posición REAL del óptimo global al finalizar la
+        corrida, para comparar visualmente contra dónde terminó el
+        jugador. Si la función tiene varios óptimos globales igualmente
+        válidos (ej. Himmelblau), se marcan TODOS — sin necesitar ninguna
+        lógica especial por función aquí, gracias a additional_global_optima."""
+        all_optima = [self.terrain.global_optimum_position, *self.terrain.additional_global_optima]
+        for optimum_position in all_optima:
+            screen_pos = self.viewport.domain_to_screen(optimum_position)
+            self._draw_optimum_marker(surface, screen_pos)
+
+    @staticmethod
+    def _draw_optimum_marker(surface: pygame.Surface, screen_pos: tuple[int, int]) -> None:
+        color = config.COLOR_GLOBAL_OPTIMUM_MARKER
+        size = 12
+        x, y = screen_pos
+        # Una X gruesa dentro de un círculo — distinguible a simple vista
+        # de los marcadores de candidatos (círculos lisos) y del jugador.
+        pygame.draw.circle(surface, color, screen_pos, size + 4, width=2)
+        pygame.draw.line(surface, color, (x - size, y - size), (x + size, y + size), width=3)
+        pygame.draw.line(surface, color, (x - size, y + size), (x + size, y - size), width=3)
+
     def _draw_overview_indicator(self, surface: pygame.Surface) -> None:
         font = pygame.font.SysFont("arial", 15, bold=True)
         text = font.render("[K] MODO OBSERVADOR — vista completa", True, (255, 230, 120))
@@ -340,4 +388,4 @@ class ExplorationState:
         rect.centerx = config.SCREEN_WIDTH // 2
         rect.bottom = self.playable_rect.top - 8
         surface.blit(text, rect)
-# IRONEDIT:1783483891:36d552b3f12608b0b5cf1845d4bd1fdaec2a846dd3029fa5f6105b06c27aa9e9
+# IRONEDIT:1783512345:7ea10e5589ad3a114fcc1f408fe9926ae9719f2b48f2cf5b2b42a9d4cbd532aa

@@ -28,6 +28,11 @@ class Himmelblau(TerrainFunction):
     # Representativo: existen 3 más, todos con el mismo global_optimum_value.
     global_optimum_position = (3.0, 2.0)
     global_optimum_value = 0.0
+    additional_global_optima = (
+        (-2.805118, 3.131312),
+        (-3.779310, -3.283186),
+        (3.584428, -1.848126),
+    )
 
     def evaluate(self, x: float, y: float) -> float:
         a = x**2 + y - 11
@@ -46,4 +51,4 @@ class Himmelblau(TerrainFunction):
         hyy = 12 * y**2 + 4 * x - 26
         hxy = 4 * x + 4 * y
         return ((hxx, hxy), (hxy, hyy))
-# IRONEDIT:1783483892:80a54ef8e38aed4d4eb9237a7d13ee01345b569481f4e28008ba8d72ea7f363b
+# IRONEDIT:1783512345:34463d2cee9192531f5df3a3188e9f7245a62456854599c4b1935260ce8d9bdf

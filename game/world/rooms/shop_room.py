@@ -1,9 +1,8 @@
 """
-Interior de la tienda. Por ahora está vacía a propósito (sin vendedor, sin
-inventario) — esta entrega solo construye el contenedor navegable completo:
-la habitación, su colisión, y la puerta que regresa a la plaza. Cuando se
-añada ShopVendorInteractable más adelante, es agregar un item más a
-self.interactables; nada de esto necesita cambiar.
+Interior de la tienda. Ahora incluye un vendedor real (ShopVendorInteractable)
+que abre la interfaz de compra al presionar E — el contenedor navegable ya
+existía desde antes; añadir el vendedor fue exactamente agregar un ítem más
+a self.interactables, sin tocar nada de la colisión ni de las puertas.
 """
 
 from __future__ import annotations
@@ -12,6 +11,7 @@ import pygame
 
 from game import config
 from game.interactables.door_interactable import DoorInteractable
+from game.interactables.shop_vendor_interactable import ShopVendorInteractable
 from game.world.room import Room
 
 WALL_THICKNESS = 24
@@ -30,6 +30,8 @@ EXIT_DOOR_RECT = pygame.Rect(
     WALL_THICKNESS,
 )
 
+VENDOR_POSITION = (config.SCREEN_WIDTH // 2, ROOM_OFFSET_Y + 70)
+
 
 class ShopRoom(Room):
     def __init__(self) -> None:
@@ -37,7 +39,7 @@ class ShopRoom(Room):
 
         self._build_walls()
         self._build_exit_door()
-        self._build_placeholder_sign()
+        self._build_vendor()
 
         self.spawn_points = {
             "entrada": (config.SCREEN_WIDTH // 2, ROOM_OFFSET_Y + ROOM_HEIGHT - 60),
@@ -83,18 +85,8 @@ class ShopRoom(Room):
         )
         self.interactables.append(door)
 
-    def _build_placeholder_sign(self) -> None:
-        # Marca puramente visual (no colisión, no interactable) para dejar
-        # claro que la vacuidad es intencional y no un bug de renderizado.
-        sign_rect = pygame.Rect(0, 0, 200, 40)
-        sign_rect.center = (config.SCREEN_WIDTH // 2, ROOM_OFFSET_Y + 60)
-        self.static_visuals.append((sign_rect, (40, 34, 28)))
-        self._sign_rect = sign_rect
-
-    def draw(self, surface: pygame.Surface, context) -> None:  # type: ignore[override]
-        super().draw(surface, context)
-        font = pygame.font.SysFont("arial", 18, bold=True)
-        text = font.render("Próximamente", True, (230, 220, 200))
-        text_rect = text.get_rect(center=self._sign_rect.center)
-        surface.blit(text, text_rect)
-# IRONEDIT:1783483892:1ae1d80b4ee4dd5fc81feebd577e0e4ef4861fbfb3c81a0085e7d18016abb285
+    def _build_vendor(self) -> None:
+        # ON_INTERACT (requiere E, no solo pisarlo) — hablar con el
+        # vendedor nunca debe ser accidental, a diferencia de las puertas.
+        self.interactables.append(ShopVendorInteractable(VENDOR_POSITION))
+# IRONEDIT:1783512345:bb65bda3a24db20f9ddc4bc7c4c520604c978eb4eec19869e13282c56a2720fa

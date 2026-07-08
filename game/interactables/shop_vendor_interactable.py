@@ -68,4 +68,4 @@ class ShopVendorInteractable(Interactable):
     def draw_indicator(self, surface: pygame.Surface, context: "RoomContext") -> None:
         pygame.draw.rect(surface, config.COLOR_SHOP_BUILDING, self.rect, border_radius=6)
         pygame.draw.rect(surface, (255, 230, 120), self.rect, width=2, border_radius=6)
-# IRONEDIT:1783511592:259c42f13f78635663f30b3a38f97964765e8c62f6730c06a98a046692308a03
+# IRONEDIT:1783512345:9deb48044b30c90e7793b65e395576158119ce13e638272534d35d64803429dd

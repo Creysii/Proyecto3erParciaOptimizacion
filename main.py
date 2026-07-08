@@ -30,9 +30,15 @@ def main() -> None:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                running = False
             else:
+                # ESC ya NO se intercepta aquí globalmente — antes esto
+                # cerraba el juego completo incluso cuando ESC se
+                # presionaba para cancelar un menú (ej. DetectorSelectMenu),
+                # porque el evento nunca llegaba a game_state_manager. Cada
+                # estado decide localmente qué hacer con ESC (cancelar un
+                # overlay, o no hacer nada si no aplica); la única forma
+                # de cerrar la ventana ahora es el botón de cerrar del SO
+                # (que dispara pygame.QUIT, manejado arriba).
                 game_state_manager.handle_event(event)
 
         game_state_manager.update(dt)
@@ -46,4 +52,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-# IRONEDIT:1783483891:672fd0d4149a26b4617ec956ed84752d34f95287cdaf735bd8f893cd79678307
+# IRONEDIT:1783512345:6647b7269e87bca502cd5cdaf2d28b2a5f622e399c19140bc4cf4faca2278bb9
