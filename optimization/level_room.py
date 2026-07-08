@@ -112,3 +112,4 @@ class OptimizationRun:
         if self.phase == RunPhase.CHOOSING_START:
             return None
         return self.algorithm.get_convergence_indicator()
+# IRONEDIT:1783483892:fdd82771da4d69699f6acfdca214295710fcf792ee3bb94dc69a48050bf609f0
